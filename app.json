@@ -1,0 +1,11 @@
+{
+  "name": "isbronsonhungry",
+  "description": "How hungry is that cat?",
+  "repository": "https://github.com/rjbailey/isbronsonhungry",
+  "success_url": "/",
+  "keywords": ["rust", "iron"],
+  "website": "https://github.com/rjbailey/isbronsonhungry",
+  "env": {
+    "BUILDPACK_URL": "https://github.com/emk/heroku-buildpack-rust.git"
+  }
+}
