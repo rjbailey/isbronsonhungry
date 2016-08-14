@@ -9,6 +9,7 @@ extern crate lazy_static;
 extern crate mount;
 extern crate num_cpus;
 extern crate openssl;
+extern crate params;
 #[macro_use]
 extern crate postgres;
 extern crate r2d2;
@@ -25,6 +26,7 @@ use iron::prelude::*;
 use iron::status;
 use mount::Mount;
 use openssl::ssl::{SslContext, SslMethod};
+use params::{Params, Value};
 use postgres::rows::Row;
 use r2d2_postgres::PostgresConnectionManager as PCM;
 use r2d2_postgres::SslMode;
@@ -76,13 +78,24 @@ fn get_events(_: &mut Request) -> IronResult<Response> {
     Ok(Response::with((status::Ok, serde_json::to_string(&events).unwrap())))
 }
 
+fn log_event(req: &mut Request, activity: Activity) -> IronResult<Response> {
+    let conn = DB_POOL.get().unwrap();
+    let map = req.get_ref::<Params>().unwrap();
+    let human = match map.find(&["human"]) {
+        Some(&Value::String(ref name)) => name,
+        _ => "",
+    };
+    conn.execute("INSERT INTO events (activity, human) VALUES ($1, $2)",
+                 &[&activity, &human]).unwrap();
+    Ok(Response::with((status::Ok, "")))
+}
+
 fn get_server_port() -> u16 {
     env::var("PORT").ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(8080)
 }
 
-/// Configure and run our server.
 fn main() {
     // Initialize the logger so we can see error messages.
     env_logger::init().unwrap();
@@ -90,6 +103,10 @@ fn main() {
     let mut mount = Mount::new();
     mount.mount("/", Static::new(Path::new("static")));
     mount.mount("/events", get_events);
+    mount.mount("/feed", |r: &mut Request| log_event(r, Activity::Feeding));
+    mount.mount("/pet",  |r: &mut Request| log_event(r, Activity::Petting));
+    mount.mount("/play", |r: &mut Request| log_event(r, Activity::Playing));
+    mount.mount("/talk", |r: &mut Request| log_event(r, Activity::Talking));
 
     // Run the server.
     Iron::new(mount).http(("0.0.0.0", get_server_port())).unwrap();
