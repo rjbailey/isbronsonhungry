@@ -1,8 +1,12 @@
 extern crate env_logger;
 extern crate iron;
+#[macro_use]
+extern crate lazy_static;
 extern crate mount;
+extern crate num_cpus;
 extern crate openssl;
-extern crate postgres;
+extern crate r2d2;
+extern crate r2d2_postgres;
 extern crate staticfile;
 
 use std::env;
@@ -11,13 +15,24 @@ use iron::prelude::*;
 use iron::status;
 use mount::Mount;
 use openssl::ssl::{SslContext, SslMethod};
-use postgres::{Connection, SslMode};
+use r2d2_postgres::PostgresConnectionManager as PCM;
+use r2d2_postgres::SslMode;
 use staticfile::Static;
 
+lazy_static! {
+    static ref DB_POOL: r2d2::Pool<PCM> = {
+        let ctx = Box::new(SslContext::new(SslMethod::Sslv23).unwrap());
+        let url = env::var("DATABASE_URL").unwrap();
+        let config = r2d2::Config::builder()
+            .pool_size(num_cpus::get() as u32)
+            .build();
+        let manager = PCM::new(&url[..], SslMode::Require(ctx)).unwrap();
+        r2d2::Pool::new(config, manager).unwrap()
+    };
+}
+
 fn hello(_: &mut Request) -> IronResult<Response> {
-    let ctx = SslContext::new(SslMethod::Sslv23).unwrap();
-    let conn = Connection::connect(&env::var("DATABASE_URL").unwrap()[..],
-                                   SslMode::Require(&ctx)).unwrap();
+    let conn = DB_POOL.get().unwrap();
     let mut resp = Response::with((status::Ok, "Hello world!"));
     for row in &conn.query("SELECT 42", &[]).unwrap() {
         let result: i32 = row.get(0);
