@@ -1,3 +1,7 @@
+#![feature(plugin, custom_derive)]
+#![plugin(postgres_derive_macros, serde_macros)]
+
+extern crate chrono;
 extern crate env_logger;
 extern crate iron;
 #[macro_use]
@@ -5,19 +9,53 @@ extern crate lazy_static;
 extern crate mount;
 extern crate num_cpus;
 extern crate openssl;
+#[macro_use]
+extern crate postgres;
 extern crate r2d2;
 extern crate r2d2_postgres;
+extern crate serde;
+extern crate serde_json;
 extern crate staticfile;
 
 use std::env;
 use std::path::Path;
+
+use chrono::{DateTime, UTC};
 use iron::prelude::*;
 use iron::status;
 use mount::Mount;
 use openssl::ssl::{SslContext, SslMethod};
+use postgres::rows::Row;
 use r2d2_postgres::PostgresConnectionManager as PCM;
 use r2d2_postgres::SslMode;
 use staticfile::Static;
+
+#[derive(Debug, ToSql, FromSql, Serialize, Deserialize)]
+enum Activity {
+    Feeding,
+    Petting,
+    Playing,
+    Talking,
+}
+
+#[derive(Debug, Serialize)]
+struct Event {
+    id: i32,
+    activity: Activity,
+    human: String,
+    time: DateTime<UTC>,
+}
+
+impl Event {
+    fn from_row(row: &Row) -> Self {
+        Event {
+            id: row.get("id"),
+            activity: row.get("activity"),
+            human: row.get("human"),
+            time: row.get("time"),
+        }
+    }
+}
 
 lazy_static! {
     static ref DB_POOL: r2d2::Pool<PCM> = {
@@ -31,14 +69,11 @@ lazy_static! {
     };
 }
 
-fn hello(_: &mut Request) -> IronResult<Response> {
+fn get_events(_: &mut Request) -> IronResult<Response> {
     let conn = DB_POOL.get().unwrap();
-    let mut resp = Response::with((status::Ok, "Hello world!"));
-    for row in &conn.query("SELECT 42", &[]).unwrap() {
-        let result: i32 = row.get(0);
-        resp = Response::with((status::Ok, result.to_string()));
-    }
-    Ok(resp)
+    let rows = &conn.query("SELECT * FROM events", &[]).unwrap();
+    let events: Vec<_> = rows.iter().map(|row| Event::from_row(&row)).collect();
+    Ok(Response::with((status::Ok, serde_json::to_string(&events).unwrap())))
 }
 
 fn get_server_port() -> u16 {
@@ -54,7 +89,7 @@ fn main() {
 
     let mut mount = Mount::new();
     mount.mount("/", Static::new(Path::new("static")));
-    mount.mount("/hello", hello);
+    mount.mount("/events", get_events);
 
     // Run the server.
     Iron::new(mount).http(("0.0.0.0", get_server_port())).unwrap();
