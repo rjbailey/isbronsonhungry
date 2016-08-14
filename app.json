@@ -6,6 +6,6 @@
   "keywords": ["rust", "iron"],
   "website": "https://github.com/rjbailey/isbronsonhungry",
   "env": {
-    "BUILDPACK_URL": "https://github.com/emk/heroku-buildpack-rust.git"
+    "BUILDPACK_URL": "https://github.com/Hoverbear/heroku-buildpack-rust"
   }
 }
