@@ -27,8 +27,9 @@ fn hello(_: &mut Request) -> IronResult<Response> {
 }
 
 fn get_server_port() -> u16 {
-    let port_str = env::var("PORT").unwrap_or(String::new());
-    port_str.parse().unwrap_or(8080)
+    env::var("PORT").ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(8080)
 }
 
 /// Configure and run our server.
