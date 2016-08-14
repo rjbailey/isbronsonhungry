@@ -12,5 +12,9 @@ authors = ["Jake Bailey <rjacob.bailey@gmail.com>"]
 unstable = []
 
 [dependencies]
+env_logger = "*"
 iron = "0.4.0"
-router = "0.2.0"
+mount = "0.2.1"
+openssl = "< 0.8"
+postgres = { version = "0.11.10", features = ["openssl"] }
+staticfile = "0.3.0"
