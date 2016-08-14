@@ -42,7 +42,6 @@ enum Activity {
 
 #[derive(Debug, Serialize)]
 struct Event {
-    id: i32,
     activity: Activity,
     human: String,
     time: DateTime<UTC>,
@@ -51,7 +50,6 @@ struct Event {
 impl Event {
     fn from_row(row: &Row) -> Self {
         Event {
-            id: row.get("id"),
             activity: row.get("activity"),
             human: row.get("human"),
             time: row.get("time"),
