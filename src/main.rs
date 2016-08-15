@@ -71,7 +71,7 @@ lazy_static! {
 
 fn get_events(_: &mut Request) -> IronResult<Response> {
     let conn = DB_POOL.get().unwrap();
-    let rows = &conn.query("SELECT * FROM events", &[]).unwrap();
+    let rows = &conn.query("SELECT * FROM events ORDER BY time DESC", &[]).unwrap();
     let events: Vec<_> = rows.iter().map(|row| Event::from_row(&row)).collect();
     Ok(Response::with((status::Ok, serde_json::to_string(&events).unwrap())))
 }

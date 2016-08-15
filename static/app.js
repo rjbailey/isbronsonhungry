@@ -87,7 +87,7 @@ function view() {
 
       m('.tile',
         m('h2', 'Bronson Activity Feed'),
-        events.slice().reverse().map(function(ev) {
+        events.map(function(ev) {
           return m('p.' + ev.activity, eventString(ev))
         })
       )
