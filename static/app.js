@@ -50,7 +50,7 @@ var hungerMessages = [
 
 function hungerString() {
   var latestFeeding = getLatestFeeding().time
-  var hoursSinceFeeding = moment(latestFeeding).diff(moment(), 'hours')
+  var hoursSinceFeeding = moment().diff(moment(latestFeeding), 'hours')
   if (hoursSinceFeeding >= 20) return 'Bronson is STARVING'
   if (hoursSinceFeeding < 0) hoursSinceFeeding = 0
   return 'Bronson ' + hungerMessages[hoursSinceFeeding]
