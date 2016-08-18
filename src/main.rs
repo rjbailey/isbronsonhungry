@@ -59,11 +59,14 @@ impl Event {
 
 lazy_static! {
     static ref DB_POOL: r2d2::Pool<PCM> = {
+        let url = env::var("DATABASE_URL")
+            .expect("Missing env var DATABASE_URL");
+
         let ctx = Box::new(SslContext::new(SslMethod::Sslv23)
                            .expect("Couldn't initialize SSL context"));
 
-        let url = env::var("DATABASE_URL")
-            .expect("Missing env var DATABASE_URL");
+        let manager = PCM::new(&url[..], SslMode::Require(ctx))
+            .expect("DATABASE_URL invalid");
 
         let config = r2d2::Config::builder()
             // The Heroku Postgres hobby tier has a connection limit of 20, so
@@ -74,9 +77,6 @@ lazy_static! {
             // currently the threadpool size Iron uses.
             .pool_size(8)
             .build();
-
-        let manager = PCM::new(&url[..], SslMode::Require(ctx))
-            .expect("DATABASE_URL invalid");
 
         r2d2::Pool::new(config, manager)
             .expect("Couldn't connect to database")
