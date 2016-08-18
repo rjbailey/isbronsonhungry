@@ -8,7 +8,6 @@ extern crate iron;
 #[macro_use]
 extern crate lazy_static;
 extern crate mount;
-extern crate num_cpus;
 extern crate openssl;
 extern crate params;
 #[macro_use]
@@ -67,7 +66,13 @@ lazy_static! {
             .expect("Missing env var DATABASE_URL");
 
         let config = r2d2::Config::builder()
-            .pool_size(num_cpus::get() as u32)
+            // The Heroku Postgres hobby tier has a connection limit of 20, so
+            // we use 8 here to allow one dev and one release build to run
+            // simultaneously while also allowing a psql connection or two.
+            //
+            // Without that limit, we might want to use 8 * num_cpus, which is
+            // currently the threadpool size Iron uses.
+            .pool_size(8)
             .build();
 
         let manager = PCM::new(&url[..], SslMode::Require(ctx))

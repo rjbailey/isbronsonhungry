@@ -23,7 +23,6 @@ env_logger = "0.3"
 iron = "0.4"
 lazy_static = "0.2"
 mount = "0.2"
-num_cpus = "1"
 openssl = "< 0.8"
 params = "0.3"
 postgres = { version = "0.11", features = ["openssl", "chrono"] }
