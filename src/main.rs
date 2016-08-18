@@ -60,7 +60,7 @@ impl Event {
 lazy_static! {
     static ref DB_POOL: r2d2::Pool<PCM> = {
         let url = env::var("DATABASE_URL")
-            .expect("Missing env var DATABASE_URL");
+            .expect("DATABASE_URL missing or invalid");
 
         let ctx = Box::new(SslContext::new(SslMethod::Sslv23)
                            .expect("Couldn't initialize SSL context"));
