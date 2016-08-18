@@ -3,6 +3,7 @@
 
 extern crate chrono;
 extern crate env_logger;
+#[macro_use]
 extern crate iron;
 #[macro_use]
 extern crate lazy_static;
@@ -59,33 +60,42 @@ impl Event {
 
 lazy_static! {
     static ref DB_POOL: r2d2::Pool<PCM> = {
-        let ctx = Box::new(SslContext::new(SslMethod::Sslv23).unwrap());
-        let url = env::var("DATABASE_URL").unwrap();
+        let ctx = Box::new(SslContext::new(SslMethod::Sslv23)
+                           .expect("Couldn't initialize SSL context"));
+
+        let url = env::var("DATABASE_URL")
+            .expect("Missing env var DATABASE_URL");
+
         let config = r2d2::Config::builder()
             .pool_size(num_cpus::get() as u32)
             .build();
-        let manager = PCM::new(&url[..], SslMode::Require(ctx)).unwrap();
-        r2d2::Pool::new(config, manager).unwrap()
+
+        let manager = PCM::new(&url[..], SslMode::Require(ctx))
+            .expect("DATABASE_URL invalid");
+
+        r2d2::Pool::new(config, manager)
+            .expect("Couldn't connect to database")
     };
 }
 
 fn get_events(_: &mut Request) -> IronResult<Response> {
-    let conn = DB_POOL.get().unwrap();
-    let rows = &conn.query("SELECT * FROM events ORDER BY time DESC", &[]).unwrap();
+    let conn = itry!(DB_POOL.get(), status::ServiceUnavailable);
+    let rows = itry!(conn.query("SELECT * FROM events ORDER BY time DESC", &[]));
     let events: Vec<_> = rows.iter().map(|row| Event::from_row(&row)).collect();
-    Ok(Response::with((status::Ok, serde_json::to_string(&events).unwrap())))
+    let body = itry!(serde_json::to_string(&events));
+    Ok(Response::with((status::Ok, body)))
 }
 
 fn log_event(req: &mut Request, activity: Activity) -> IronResult<Response> {
-    let conn = DB_POOL.get().unwrap();
-    let map = req.get_ref::<Params>().unwrap();
+    let conn = itry!(DB_POOL.get(), status::ServiceUnavailable);
+    let map = itry!(req.get_ref::<Params>());
     let human = match map.find(&["human"]) {
         Some(&Value::String(ref name)) => name,
         _ => "",
     };
-    conn.execute("INSERT INTO events (activity, human) VALUES ($1, $2)",
-                 &[&activity, &human]).unwrap();
-    Ok(Response::with((status::Ok, "")))
+    itry!(conn.execute("INSERT INTO events (activity, human) VALUES ($1, $2)",
+                       &[&activity, &human]));
+    Ok(Response::with(status::Ok))
 }
 
 fn get_server_port() -> u16 {
@@ -96,7 +106,8 @@ fn get_server_port() -> u16 {
 
 fn main() {
     // Initialize the logger so we can see error messages.
-    env_logger::init().unwrap();
+    env_logger::init()
+        .expect("Couldn't initialize logger");
 
     let mut mount = Mount::new();
     mount.mount("/", Static::new(Path::new("static")));
@@ -107,5 +118,6 @@ fn main() {
     mount.mount("/talk", |r: &mut Request| log_event(r, Activity::Talking));
 
     // Run the server.
-    Iron::new(mount).http(("0.0.0.0", get_server_port())).unwrap();
+    Iron::new(mount).http(("0.0.0.0", get_server_port()))
+        .expect("Couldn't start server");
 }

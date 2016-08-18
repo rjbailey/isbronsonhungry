@@ -11,6 +11,12 @@ authors = ["Jake Bailey <rjacob.bailey@gmail.com>"]
 # version of Cargo.
 unstable = []
 
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+
 [dependencies]
 chrono = { version = "0.2", features = ["serde"] }
 env_logger = "0.3"
