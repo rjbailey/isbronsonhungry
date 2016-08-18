@@ -22,7 +22,7 @@ function eventString(ev) {
 function getLatestFeeding() {
   return _(events)
     .filter(function(ev) { return ev.activity === 'Feeding' })
-    .maxBy(function(ev) { return ev.time })
+    .maxBy(function(ev) { return moment(ev.time) })
 }
 
 var hungerMessages = [
